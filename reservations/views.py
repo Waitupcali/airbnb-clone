@@ -4,6 +4,7 @@ from django.views.generic import View
 from django.contrib import messages
 from django.shortcuts import render, redirect, reverse
 from rooms import models as room_models
+from reviews import forms as review_forms
 from . import models
 
 
@@ -35,33 +36,34 @@ def create(request, room, year, month, day):
 class ReservationDetailView(View):
     def get(self, *args, **kwargs):
         pk = kwargs.get("pk")
-        reservation = models.Reservation.objects.get_or_none(pk=pk)
+        reservation = models.Reservation.objects.get(pk=pk)
         if not reservation or (
             reservation.guest != self.request.user
             and reservation.room.host != self.request.user
         ):
             raise Http404()
 
+        form = review_forms.CreateReviewForm()
+
         return render(
-            self.request,
-            "reservations/detail.html",
-            {"reservation": reservation},
+            self.request, "reservations/detail.html", {"reservation": reservation, "form":form},
         )
 
 
-
 def edit_reservation(request, pk, verb):
-    reservation = models.Reservation.objects.get_or_none(pk=pk)
+    reservation = models.Reservation.objects.get(pk=pk)
+    print(reservation.status)
 
     if not reservation or (
-        reservation.guest != request.user and reservation.room.host != request.user
+        reservation.guest != request.user
+        and reservation.room.host != request.user
     ):
         raise Http404()
 
-    if verb == 'confirm':
+    if verb == "confirm":
         reservation.status = models.Reservation.STATUS_CONFIRMED
 
-    elif verb == 'cancel':
+    elif verb == "cancel":
         reservation.status = models.Reservation.STATUS_CANCELED
         models.BookedDay.objects.filter(reservation=reservation).delete()
 

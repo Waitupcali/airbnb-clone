@@ -1,5 +1,7 @@
 import os
 import requests
+from django.utils import translation
+from django.http import HttpResponse
 from django.views import View
 from django.contrib.auth.views import PasswordChangeView
 from django.views.generic import FormView, DetailView, UpdateView
@@ -41,21 +43,17 @@ def log_out(request):
     return redirect(reverse("core:home"))
 
 
-class SignUpView(FormView):
+class SignUpView(mixins.LoggedOutOnlyView   , FormView):
     template_name = "users/signup.html"
     form_class = forms.SignUpForm
     success_url = reverse_lazy("core:home")
-    # initial = {
-    #     "first_name": "jihyeok",
-    #     "last_name": "lim",
-    #     "email": "jihyeok2yo@gmail.com",
-    # }
+
 
     def form_valid(self, form):
+        form.save()
         email = form.cleaned_data.get("email")
         password = form.cleaned_data.get("password")
         user = authenticate(self.request, username=email, password=password)
-        form.save()
         if user is not None:
             login(self.request, user)
         user.verify_email()
@@ -68,7 +66,7 @@ def complete_verification(request, key):
         user.email_verified = True
         user.email_secret = ""
         user.save()
-    # to do : add success message
+        # to do : add success message
     except models.User.DoesNotExist:
         # to do : add error message
         pass
@@ -264,7 +262,6 @@ class UpdatePasswordView(
     template_name = 'users/update_password.html'
     success_message = "Password Updated"
 
-
     def get_form(self, form_class=None):
         form = super().get_form(form_class=form_class)
         form.fields['old_password'].widget.attrs = {'placeholder':'Current Password'}
@@ -275,6 +272,7 @@ class UpdatePasswordView(
     def get_success_url(self):
         return self.request.user.get_absolute_url()
 
+
 @login_required
 def switch_hosting(request):
     try:
@@ -282,3 +280,12 @@ def switch_hosting(request):
     except KeyError:
         request.session['is_hosting'] = True
     return redirect(reverse("core:home"))
+
+
+def switch_language(request):
+    lang = request.GET.get('lang', None)
+    if lang is not None:
+        request.session[translation.LANGUAGE_SESSION_KEY] = lang
+        print(lang)
+        print(translation.LANGUAGE_SESSION_KEY)
+    return HttpResponse(status=200)
